@@ -1,305 +1,293 @@
-# Evaluating Large Language Models as Technical Interview Evaluators: A Comparative Empirical Benchmark
+# MockMate AI – AI-Powered Technical Interview Preparation Platform
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![OpenAI API](https://img.shields.io/badge/OpenAI-API-green.svg)](https://platform.openai.com/)
+> Practice smarter. Interview better.
 
+MockMate AI is a full-stack AI-powered platform designed to help developers prepare for technical interviews through structured mock interviews, automated answer evaluation, and personalized performance analytics.
 
-A rigorous empirical benchmarking framework and engineering minor project comparing Large Language Models (`gpt-4o-mini`, `gpt-4.1-mini`, `gpt-4.1`, etc.) on evaluating candidate technical interview answers across multi-dimensional criteria (Clarity, Relevance, Structure, and Confidence), providing actionable coaching feedback, and proposing interview-ready sample answers.
+Candidates can practice questions across different technical categories and difficulty levels, receive AI-generated feedback, identify areas for improvement, and track their progress over time.
 
----
+## ✨ Features
 
-## Table of Contents
+- **User Authentication:** Secure registration and login using JWT-based authentication.
+- **Mock Interviews:** Create interviews based on technical categories, difficulty levels, and question counts.
+- **AI-Powered Evaluation:** Evaluate answers using OpenAI models with structured JSON responses.
+- **Four-Dimensional Scoring:** Assess answers across:
+  - Clarity
+  - Relevance
+  - Structure
+  - Linguistic Confidence
+- **Explainable Feedback:** Receive score explanations, supporting evidence, strengths, weaknesses, and improvement suggestions.
+- **Suggested Answers:** Review improved answer suggestions and missing concepts.
+- **Evaluation Fallback:** A rule-based heuristic evaluator provides feedback when an OpenAI API key is unavailable or the AI evaluation fails.
+- **Performance Dashboard:** View interview statistics and performance summaries.
+- **Progress Analytics:** Track scores and identify stronger and weaker evaluation dimensions.
+- **Interview History:** Review previous interview attempts and their results.
+- **Persistent Storage:** Store users, interviews, answers, and evaluations in a relational database.
 
-1. [Executive Summary & Research Objective](#1-executive-summary--research-objective)
-2. [Research Questions (RQs)](#2-research-questions-rqs)
-3. [Evaluation Dimensions & Rubric](#3-evaluation-dimensions--rubric)
-4. [Dataset Architecture & Provenance](#4-dataset-architecture--provenance)
-5. [System Architecture & Project Layout](#5-system-architecture--project-layout)
-6. [Installation & macOS Setup](#6-installation--macos-setup)
-7. [API Key Configuration](#7-api-key-configuration)
-8. [Reproducibility & Execution Commands](#8-reproducibility--execution-commands)
-   - [Pre-flight Connectivity Check](#pre-flight-connectivity-check)
-   - [Stage A: Pilot Experiment](#stage-a-pilot-experiment)
-   - [Stage B: Full Experiment](#stage-b-full-experiment)
-   - [Optional Prompting Strategy Experiment](#optional-prompting-strategy-experiment)
-   - [Human Feedback Evaluation Framework](#human-feedback-evaluation-framework)
-   - [Standalone Chart Generation](#standalone-chart-generation)
-9. [Quantitative Metrics & Mathematical Definitions](#9-quantitative-metrics--mathematical-definitions)
-10. [Interpreting Experimental Results](#10-interpreting-experimental-results)
-11. [Research Integrity, Disclosures & Limitations](#11-research-integrity-disclosures--limitations)
+## 🛠️ Tech Stack
 
----
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- Axios
+- React Router
+- Recharts
+- Lucide React
 
-## 1. Executive Summary & Research Objective
+### Backend
+- Python
+- FastAPI
+- SQLAlchemy
+- Pydantic
+- Alembic
+- JWT Authentication
+- Argon2 / bcrypt password hashing
 
-Automating technical interview feedback using foundation models promises scalable personalized coaching for job applicants. However, deploying Large Language Models (LLMs) as evaluators requires systematic validation rather than subjective demonstrations. 
+### AI & Evaluation
+- OpenAI API
+- GPT-4o-mini (configurable)
+- Structured JSON output
+- Custom evaluation prompts and scoring logic
+- Rule-based heuristic fallback
 
-This research project evaluates:
-- How accurately different frontier and cost-efficient LLMs align with benchmark interview evaluation scores across distinct communication dimensions.
-- How prompt architecture (unconstrained general instructions vs. detailed rubric-guided definitions) influences scoring consistency, error rates, and qualitative feedback actionability.
-- The cost-to-performance frontier, balancing response latency, API expenditure, and scoring reliability for real-world interview preparation platforms.
+### Database & Deployment
+- SQLite
+- PostgreSQL
+- Docker & Docker Compose
+- Nginx
+- Render (backend deployment)
+- Vercel (frontend deployment configuration)
 
----
+## 🏗️ Project Architecture
 
-## 2. Research Questions (RQs)
-
-- **RQ1 (Dimensional Alignment):** How closely do model-assigned scores align with reference scores across **Clarity**, **Relevance**, **Structure**, and **Confidence** measured by Mean Absolute Error (MAE), Exact Agreement, and Within-One-Point Agreement?
-- **RQ2 (Cost-Performance Trade-off):** Does higher model complexity (e.g., `gpt-4.1` vs. `gpt-4o-mini` / `gpt-4.1-mini`) produce statistically significant improvements in scoring consistency commensurate with increased latency and token pricing?
-- **RQ3 (Prompt Engineering Impact):** Does explicit rubric anchoring (Approach B) mitigate score inflation and variance compared to general open-ended evaluation prompting (Approach A)?
-- **RQ4 (Feedback Quality):** To what extent do model-generated feedback texts provide specific, actionable, and technically correct coaching guidance rather than generic encouragement?
-
----
-
-## 3. Evaluation Dimensions & Rubric
-
-Each candidate response is scored on a discrete integer scale from **1 (Poor)** to **5 (Exceptional)** across four dimensions:
-
-| Dimension | Description | Score 1 Anchor | Score 5 Anchor |
-| :--- | :--- | :--- | :--- |
-| **Clarity** | Articulation, conciseness, communication flow, lack of filler words. | Incoherent, heavy filler ('um', 'like'), disorganized thought. | Crystal-clear mental model, highly articulate, zero extraneous filler. |
-| **Relevance** | Directness, focus, addressing core technical/behavioral concepts. | Completely off-topic or evasive; misses core intent. | Directly targets question, addresses nuanced edge cases. |
-| **Structure** | Organization, logical sequencing, framework usage (e.g., STAR method). | Stream-of-consciousness, disjointed fragments. | Flawless structural progression (Situation-Task-Action-Result / definition-tradeoff-example). |
-| **Confidence** | Technical ownership, authority, conviction conveyed in phrasing. | Apologetic, timid, second-guessing ('maybe', 'I don't know'). | Poised, authoritative yet humble, radiates mastery through wording. |
-
-Additionally, every model produces:
-- **`feedback`**: Actionable critique highlighting strengths, vulnerabilities, and targeted improvement strategies.
-- **`improved_answer`**: A high-scoring sample response demonstrating how to address the prompt effectively.
-
----
-
-## 4. Dataset Architecture & Provenance
-
-The benchmark dataset is located at `data/interview_dataset.json` (with automatic fallback to `data/interview_training_data_all.json`). It contains **33 curated interview records** spanning Software Engineering, Technical, Behavioral, and HR domains across varying difficulties (easy, medium, hard).
-
-### Record Structure
-```json
-{
-  "id": 1,
-  "role": "Software Engineer",
-  "category": "Behavioral",
-  "difficulty": "easy",
-  "question": "Tell me about yourself.",
-  "candidate_answer": "Um, I am a fresher, I did my B.Tech and I like coding. I know Java and some Python. I want a job in a good company.",
-  "answer_quality": "weak",
-  "feedback": "Your answer is too short and generic. Avoid fillers like 'um'...",
-  "scores": {
-    "clarity": 2,
-    "relevance": 2,
-    "structure": 1,
-    "confidence": 2
-  },
-  "improved_answer": "I'm a recent B.Tech graduate in Computer Science with hands-on experience in Java and Python..."
-}
+```text
+Mockmate-AI/
+│
+├── backend/
+│   ├── app/
+│   │   ├── ai/
+│   │   │   ├── evaluator.py
+│   │   │   ├── prompts.py
+│   │   │   ├── response_parser.py
+│   │   │   └── scoring.py
+│   │   │
+│   │   ├── api/
+│   │   │   └── routes/
+│   │   │       ├── auth.py
+│   │   │       ├── users.py
+│   │   │       ├── questions.py
+│   │   │       ├── interviews.py
+│   │   │       ├── evaluations.py
+│   │   │       └── analytics.py
+│   │   │
+│   │   ├── core/
+│   │   ├── database/
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   └── main.py
+│   │
+│   ├── alembic/
+│   ├── tests/
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── contexts/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   │
+│   ├── package.json
+│   ├── Dockerfile
+│   └── vite.config.ts
+│
+├── docker-compose.yml
+├── render.yaml
+├── .env.example
+└── README.md
 ```
 
-> [!IMPORTANT]
-> **Data Leakage Safeguard:** During evaluation, the prompt generator extracts **only** `question` and `candidate_answer`. The reference scores, reference feedback, and reference improved answer are strictly excluded from the prompt payload to guarantee unbiased evaluation.
+## ⚙️ How It Works
 
----
+1. **Authentication:** Users register or log in and receive a JWT access token.
+2. **Interview Creation:** The user selects a technical category, difficulty, interview mode, and number of questions.
+3. **Question Selection:** The backend retrieves suitable questions from the question database.
+4. **Answer Submission:** Candidate answers are submitted through the frontend to the FastAPI backend.
+5. **AI Evaluation:** The evaluation engine analyzes the answer against the question, difficulty, and expected concepts.
+6. **Scoring:** The system generates four dimension-wise scores and calculates an overall score.
+7. **Feedback Generation:** Candidates receive explanations, evidence, strengths, weaknesses, missing concepts, and suggested improvements.
+8. **Analytics:** Interview results are stored and used to generate performance summaries and progress insights.
 
-## 5. System Architecture & Project Layout
+## 🧠 Evaluation Methodology
 
-```
-ai-interview-preparation/
-├── .env                                  # Local environment credentials (ignored by Git)
-├── .env.example                          # Sample environment configuration template
-├── .gitignore                            # Git security rules
-├── requirements.txt                      # Project Python dependencies
-├── README.md                             # Research documentation & instructions
-├── data/
-│   ├── interview_dataset.json            # Active benchmark dataset (33 records)
-│   └── interview_training_data_all.json  # Raw source dataset
-├── results/                              # Generated experimental artifacts
-│   ├── model_outputs.csv                 # Granular model responses & latencies
-│   ├── model_metrics.csv                 # Aggregated quantitative metrics
-│   ├── human_feedback_ratings_template.csv # Blank human evaluation sheet
-│   ├── errors.csv                        # Detailed error logs
-│   ├── experiment_config.json            # Run parameters and metadata
-│   ├── comparison_mae.png                # Overall MAE comparison chart
-│   ├── dimension_mae.png                 # Dimensional MAE breakdown chart
-│   ├── latency_comparison.png            # Response latency boxplot
-│   └── agreement_comparison.png          # Exact and ±1 pt agreement rates
-├── src/
-│   ├── __init__.py                       # Package initializer
-│   ├── config.py                         # Central configuration, models, rubrics, pricing
-│   ├── evaluate_models.py                # Main experiment runner (Pilot, Full, CLI)
-│   ├── evaluation_metrics.py             # MAE, exact agreement, latency & cost calculations
-│   ├── feedback_evaluation.py            # Human evaluation rubric & linguistic diagnostics
-│   ├── plotting.py                       # High-resolution Seaborn publication charts
-│   └── utils.py                          # Ingestion, validation, caching & cost helpers
-└── tests/
-    └── test_pipeline.py                  # Unit and integration test suite
-```
+MockMate AI evaluates technical interview answers using four dimensions, each scored on a scale of 1 to 5.
 
----
+| Dimension | What it evaluates |
+|---|---|
+| Clarity | How clearly the candidate explains concepts |
+| Relevance | How closely the answer addresses the question |
+| Structure | Organization and logical flow of the explanation |
+| Linguistic Confidence | Assertiveness and clarity of language |
 
-## 6. Installation & macOS Setup
+The overall score is calculated as:
 
-Open Terminal on macOS and navigate to the project directory:
+**Overall Score = (Clarity + Relevance + Structure + Confidence) / 4**
+
+The AI evaluator uses structured output to produce consistent evaluation results. If AI evaluation is unavailable, the application uses a rule-based heuristic fallback.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- npm
+- OpenAI API key (optional; enables AI-powered evaluation)
+- PostgreSQL (optional for local development with SQLite)
+
+### 1. Clone the Repository
 
 ```bash
-cd /Users/mishitachauhan/ai-interview-preparation
+git clone https://github.com/MishitaChauhaan02/MockMate-AI.git
+cd MockMate-AI/Mockmate-AI
 ```
 
-### 1. Create and Activate Virtual Environment
+### 2. Backend Setup
+
+Navigate to the backend:
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+cd backend
 ```
 
-### 2. Install Project Dependencies
+Create and activate a virtual environment:
+
 ```bash
-pip install --upgrade pip
+python -m venv venv
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Verify Offline Pipeline Tests
-Run the unit test suite to verify data ingestion, mathematical routines, anti-leakage checks, and caching mechanics:
+Create your environment file:
+
 ```bash
-python -m unittest tests/test_pipeline.py
+cp .env.example .env
 ```
 
----
+Configure your environment variables:
 
-## 7. API Key Configuration
-
-1. Create or open your local `.env` file:
-   ```bash
-   cp .env.example .env
-   ```
-2. Open `.env` in any text editor and paste your OpenAI API key:
-   ```env
-   OPENAI_API_KEY=sk-proj-yourActualKeyHere
-   ```
-   > [!CAUTION]
-   > Never commit `.env` to Git. It is automatically ignored in `.gitignore`.
-
----
-
-## 8. Reproducibility & Execution Commands
-
-All commands below should be run with the virtual environment activated (`source .venv/bin/activate`).
-
-### Pre-flight Connectivity Check
-Verify that your API key is valid and test model accessibility without performing full evaluations:
-```bash
-python -m src.evaluate_models --test-connection
+```env
+DATABASE_URL=sqlite:///./mockmate.db
+SECRET_KEY=your-generated-secret-key
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+FRONTEND_URL=http://localhost:5173
 ```
 
----
+Apply database migrations:
 
-### Stage A: Pilot Experiment
-Evaluates the first 5 records across all candidate models (`gpt-4o-mini`, `gpt-4.1-mini`, `gpt-4.1`). This verifies API connectivity, JSON response schema validation, and saves preliminary metrics.
 ```bash
-python -m src.evaluate_models --pilot
-```
-*Outputs generated:* `results/model_outputs.csv`, `results/model_metrics.csv`, `results/experiment_config.json`, and all visual charts.
-
----
-
-### Stage B: Full Experiment
-Runs the comprehensive evaluation across all 33 valid records in the dataset.
-- Features automatic **resume capability**: if an API call was previously recorded in `results/model_outputs.csv`, it is skipped to prevent duplicate expenditure.
-- Implements exponential backoff retries for rate limits.
-```bash
-python -m src.evaluate_models --full
+alembic upgrade head
 ```
 
-To force a fresh re-evaluation from scratch, append `--force-rerun`:
+Start the backend:
+
 ```bash
-python -m src.evaluate_models --full --force-rerun
+uvicorn app.main:app --reload --port 8000
 ```
 
----
+Backend API: `http://localhost:8000`
 
-### Optional Prompting Strategy Experiment
-Compares **Approach A (General Prompting)** with **Approach B (Rubric-Guided Prompting)** across models:
+Interactive API documentation: `http://localhost:8000/docs`
+
+### 3. Frontend Setup
+
+Open another terminal and navigate to the frontend:
+
 ```bash
-python -m src.evaluate_models --pilot --prompt-approach both
-```
-Or across the full dataset:
-```bash
-python -m src.evaluate_models --full --prompt-approach both
-```
-
----
-
-### Human Feedback Evaluation Framework
-To evaluate feedback quality qualitatively without assuming reference feedback is the only correct answer:
-
-1. **Generate the blank human evaluation template:**
-   ```bash
-   python -m src.feedback_evaluation --generate-template
-   ```
-   This creates `results/human_feedback_ratings_template.csv`.
-
-2. **Supply ratings (1 to 5):**
-   Open the CSV and fill in ratings for `specificity_1_to_5`, `actionability_1_to_5`, `relevance_1_to_5`, `technical_correctness_1_to_5`, and `usefulness_improved_answer_1_to_5`.
-
-3. **Compute human evaluation statistics:**
-   ```bash
-   python -m src.feedback_evaluation --analyze-template results/human_feedback_ratings_template.csv
-   ```
-
-4. **Compute automated linguistic feedback diagnostics (word counts, action-cue density):**
-   ```bash
-   python -m src.feedback_evaluation --heuristics
-   ```
-
----
-
-### Standalone Chart Generation
-Re-generate high-resolution PNG charts from existing `model_outputs.csv` and `model_metrics.csv` at any time:
-```bash
-python -m src.plotting
+cd MockMate-AI/Mockmate-AI/frontend
 ```
 
----
+Install dependencies:
 
-## 9. Quantitative Metrics & Mathematical Definitions
+```bash
+npm install
+```
 
-### 1. Mean Absolute Error (MAE)
-Measures the average magnitude of absolute difference between the model's assigned score $\hat{y}_i$ and the reference score $y_i$ for record $i \in \{1, \dots, N\}$:
-$$\text{MAE}_d = \frac{1}{N} \sum_{i=1}^{N} |\hat{y}_{i,d} - y_{i,d}|$$
-$$\text{Overall MAE} = \frac{1}{4} \sum_{d \in \{\text{clarity, relevance, structure, confidence}\}} \text{MAE}_d$$
-*Interpretation:* An MAE of $0.0$ indicates perfect agreement. An MAE $\le 0.5$ indicates strong alignment on a 5-point discrete scale.
+Create the frontend environment file:
 
-### 2. Exact Agreement Percentage (%)
-The proportion of evaluation records where the model's score matches the reference score identically:
-$$\text{Exact Agreement}_d = \frac{1}{N} \sum_{i=1}^{N} \mathbb{I}(\hat{y}_{i,d} = y_{i,d}) \times 100\%$$
+```bash
+cp .env.example .env
+```
 
-### 3. Within-One-Point Agreement Percentage (%)
-The proportion of records where the model's score is within $\pm 1$ point of the reference score (standard tolerance in educational psychometrics):
-$$\text{Within-1-Point Agreement}_d = \frac{1}{N} \sum_{i=1}^{N} \mathbb{I}(|\hat{y}_{i,d} - y_{i,d}| \le 1) \times 100\%$$
+Configure:
 
-### 4. Operational & Latency Metrics
-- **Median Latency ($t_{50}$):** 50th percentile of response turnaround time in seconds.
-- **95th Percentile Latency ($t_{95}$):** Tail latency indicator representing worst-case turnaround under standard conditions.
-- **Estimated Cost (\$ USD):** Computed using OpenAI published token pricing:
-  $$\text{Cost} = \left(\frac{T_{\text{prompt}}}{10^6} \times P_{\text{prompt}}\right) + \left(\frac{T_{\text{completion}}}{10^6} \times P_{\text{completion}}\right)$$
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
+```
 
----
+Start the development server:
 
-## 10. Interpreting Experimental Results
+```bash
+npm run dev
+```
 
-When evaluating models for an interview preparation system:
-1. **Low MAE + High Within-1-Point Agreement ($\ge 90\%$):** Indicates the model reliably distinguishes weak, average, and strong interview answers without erratic outliers.
-2. **Dimensional Variance:** Models frequently perform better on *Clarity* and *Relevance* than *Confidence*. Phrasing nuances that convey confidence (e.g., passive vs. active voice) are more subtle and prone to divergent interpretations.
-3. **Rubric Guidance (Approach B):** Detailed rubric criteria typically constrain score variance, compressing MAE compared to unconstrained general prompting.
-4. **Efficiency Frontier:** If `gpt-4o-mini` achieves within 0.15 MAE of `gpt-4.1` while costing $15\times$ less and responding in under 2 seconds, it represents the superior candidate for interactive, real-time coaching applications.
+Frontend: `http://localhost:5173`
 
----
+### 4. Run with Docker
 
-## 11. Research Integrity, Disclosures & Limitations
+From the `Mockmate-AI` project root, configure the required variables in a local `.env` file using `.env.example` as a reference.
 
-In accordance with academic research standards:
+Then run:
 
-1. **Provisional Reference Scores Notice:**
-   The reference scores provided in `data/interview_dataset.json` represent a standardized baseline benchmark. Because their formal human annotation provenance and inter-rater reliability coefficients (e.g., Krippendorff's Alpha or Fleiss' Kappa) are uncertified, they are designated as **provisional reference scores**. They should be presented in academic publications as a comparative benchmark rather than infallible ground truth.
+```bash
+docker compose up --build
+```
 
-2. **LLM Evaluator Limitations:**
-   - **Self-Enhancement Bias:** LLMs evaluated against LLM-generated reference texts may exhibit bias toward stylistic verbosity.
-   - **Non-Determinism:** While `temperature=0.0` and `seed=42` minimize output entropy, OpenAI does not guarantee identical bit-level reproducibility across different infrastructure clusters or model snapshot revisions.
+The application services are available at:
 
-3. **No Fabricated Claims:**
-   All tables, charts, and metric values reported in this repository are derived exclusively from actual API calls executed against the benchmark dataset.
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+- API Documentation: `http://localhost:8000/docs`
+
+## 🧪 Running Tests
+
+Navigate to the backend directory and run:
+
+```bash
+pytest -v
+```
+
+## 🔐 Security
+
+- JWT-based authentication protects user-specific API endpoints.
+- Passwords are stored using secure password hashing.
+- Environment variables are used for API keys and application secrets.
+- Interview and evaluation access is restricted to the authenticated owner.
+- Real `.env` files and local databases should never be committed to GitHub.
+
+## 🔮 Future Improvements
+
+- Real-time voice-based mock interviews.
+- Live coding interview environment.
+- More advanced evaluation rubrics.
+- Expanded technical question bank.
+- Additional LLM provider integrations.
+- Deeper personalized learning recommendations.
+
+
+If you find this project useful, consider giving the repository a ⭐ on GitHub!
