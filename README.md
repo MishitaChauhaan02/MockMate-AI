@@ -52,13 +52,10 @@ Candidates can practice questions across different technical categories and diff
 - Custom evaluation prompts and scoring logic
 - Rule-based heuristic fallback
 
-### Database & Deployment
+### Database
 - SQLite
 - PostgreSQL
 - Docker & Docker Compose
-- Nginx
-- Render (backend deployment)
-- Vercel (frontend deployment configuration)
 
 ## 🏗️ Project Architecture
 
